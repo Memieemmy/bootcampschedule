@@ -108,6 +108,9 @@ export default function App() {
   const [newTopics,setNewTopics] = useState({});
   const [openMod,setOpenMod] = useState(null);
   const [csvFlash,setCsvFlash] = useState(false);
+  const [editingModule,setEditingModule] = useState(null);
+  const [editingTopic,setEditingTopic] = useState(null);
+  const [editDraft,setEditDraft] = useState("");
 
   const start  = useMemo(()=>sd?new Date(sd):null,[sd]);
   const end    = useMemo(()=>ed?new Date(ed):null,[ed]);
@@ -187,6 +190,28 @@ export default function App() {
   function addTopic(mod){const t=(newTopics[mod]||"").trim();if(!t)return;setModules(p=>({...p,[mod]:[...p[mod],t]}));setNewTopics(p=>({...p,[mod]:""}))}
   function rmTopic(mod,i){setModules(p=>({...p,[mod]:p[mod].filter((_,j)=>j!==i)}));}
   function rmModule(mod){setModules(p=>{const n={...p};delete n[mod];return n;});}
+  function updateModuleName(oldName, newName){
+    const n = (newName||"").trim();
+    if(!n||n===oldName||modules[n]) return;
+    setModules(p=>{const next={...p}; next[n]=p[oldName]||[]; delete next[oldName]; return next;});
+    if(MOD_COLORS[oldName]){ MOD_COLORS[n]=MOD_COLORS[oldName]; delete MOD_COLORS[oldName]; }
+    setSched(prev=>{
+      const next={}; Object.keys(prev).forEach(dk=>{ next[dk]=prev[dk].map(s=> s.module===oldName ? {...s,module:n} : s); }); return next;
+    });
+    setEditingModule(null); setEditDraft(""); if(openMod===oldName) setOpenMod(n);
+  }
+  function updateTopic(mod, index, newText){
+    const t = (newText||"").trim();
+    if(!t) return;
+    const oldTopic = (modules[mod]||[])[index];
+    setModules(p=>({...p,[mod]:p[mod].map((x,i)=>i===index?t:x)}));
+    if(oldTopic) setSched(prev=>{
+      const next={}; Object.keys(prev).forEach(dk=>{
+        next[dk]=prev[dk].map(s=> s.module===mod&&s.topic===oldTopic ? {...s,topic:t} : s);
+      }); return next;
+    });
+    setEditingTopic(null); setEditDraft("");
+  }
   function handleExportCSV(){
     downloadCSV(buildCSV(wdays,sched,getSess),`Bootcamp_Schedule_${cohort}_${sd}_to_${ed}.csv`);
     setCsvFlash(true);setTimeout(()=>setCsvFlash(false),2200);
@@ -198,9 +223,11 @@ export default function App() {
   const labelStyle = {fontSize:9,color:T.txtSub,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2,marginBottom:7,display:"block"};
 
   return (
-    <div style={{minHeight:"100vh",background:T.bg,color:T.txt,fontFamily:"'Inter','Sarabun','Noto Sans Thai',sans-serif",transition:"background .3s,color .3s"}}>
+    <div style={{minHeight:"100vh",width:"100%",background:T.bg,color:T.txt,fontFamily:"'Inter','Sarabun','Noto Sans Thai',sans-serif",transition:"background .3s,color .3s"}}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap');
+        html,body{width:100%;margin:0;padding:0;overflow-x:hidden;}
+        #root{width:100%;min-height:100vh;}
         *{box-sizing:border-box;margin:0;padding:0;}
         input,select,button{font-family:inherit;}
         ::-webkit-scrollbar{width:5px;height:5px;}
@@ -232,7 +259,7 @@ export default function App() {
         position:"sticky",top:0,zIndex:200,
         boxShadow:dark?"0 2px 24px rgba(0,0,0,.4)":"0 2px 16px rgba(0,0,0,.06)",
       }}>
-        <div style={{maxWidth:1440,margin:"0 auto",padding:"0 28px",display:"flex",alignItems:"center",justifyContent:"space-between",height:62}}>
+        <div style={{width:"100%",margin:0,padding:"0 24px",display:"flex",alignItems:"center",justifyContent:"space-between",height:62}}>
           {/* Logo */}
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             <div style={{width:36,height:36,borderRadius:10,background:T.accent,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>
@@ -278,7 +305,7 @@ export default function App() {
 
       {/* ══ SCHEDULE PAGE ══════════════════════════════════════════════════ */}
       {page==="schedule"?(
-        <main style={{maxWidth:1440,margin:"0 auto",padding:"24px 28px"}}>
+        <main style={{width:"100%",margin:0,padding:"24px",boxSizing:"border-box"}}>
 
           {/* Dashboard grid */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(175px,1fr))",gap:12,marginBottom:24}}>
@@ -489,7 +516,7 @@ export default function App() {
 
       ) : (
         /* ══ SUBJECTS PAGE ════════════════════════════════════════════════ */
-        <main style={{maxWidth:1060,margin:"0 auto",padding:"26px 28px"}}>
+        <main style={{width:"100%",margin:0,padding:"24px",boxSizing:"border-box"}}>
           <div style={{marginBottom:22}}>
             <h2 style={{fontWeight:800,fontSize:22,color:T.txt,marginBottom:4,letterSpacing:"-.4px"}}>📚 รายวิชาทั้งหมด</h2>
             <p style={{fontSize:12,color:T.txtSub}}>เพิ่ม Module และหัวข้อย่อย — จะปรากฏในตารางเรียนทันที</p>
@@ -532,17 +559,31 @@ export default function App() {
                   background:col.bg,borderRadius:14,border:`1.5px solid ${col.bd}`,overflow:"hidden",
                   boxShadow:dark?"0 2px 12px rgba(0,0,0,.3)":"0 2px 8px rgba(0,0,0,.05)",
                 }}>
-                  <div onClick={()=>setOpenMod(isOpen?null:mod)} style={{
+                  <div onClick={()=>!editingModule&&setOpenMod(isOpen?null:mod)} style={{
                     padding:"12px 14px",display:"flex",alignItems:"center",
-                    justifyContent:"space-between",cursor:"pointer",
+                    justifyContent:"space-between",cursor:editingModule?"default":"pointer",
                     borderBottom:isOpen?`1px solid ${col.bd}`:"none",
                   }}>
-                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0}}>
                       <div style={{width:8,height:8,borderRadius:"50%",background:col.dot,flexShrink:0}}/>
-                      <span style={{fontWeight:700,fontSize:13,color:col.tx}}>{mod}</span>
-                      <span style={{fontSize:10,color:col.tx,opacity:.6,background:col.bd+"55",borderRadius:20,padding:"1px 7px"}}>{topics.length}</span>
+                      {editingModule===mod ? (
+                        <>
+                          <input value={editDraft} onChange={e=>setEditDraft(e.target.value)} onKeyDown={e=>{e.stopPropagation();if(e.key==="Enter")updateModuleName(mod,editDraft);if(e.key==="Escape")setEditingModule(null);}} onClick={e=>e.stopPropagation()}
+                            style={{flex:1,minWidth:0,padding:"4px 8px",borderRadius:8,border:`1.5px solid ${col.bd}`,fontSize:12,fontWeight:600,outline:"none",background:"white",color:col.tx}}
+                            autoFocus
+                          />
+                          <button onClick={e=>{e.stopPropagation();updateModuleName(mod,editDraft);}} className="btn-accent" style={{padding:"4px 10px",borderRadius:8,background:T.accent,color:T.accentTx,fontSize:11,fontWeight:600}}>บันทึก</button>
+                          <button onClick={e=>{e.stopPropagation();setEditingModule(null);setEditDraft("");}} className="btn-ghost" style={{padding:"4px 8px",fontSize:11,color:T.txtSub}}>ยกเลิก</button>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{fontWeight:700,fontSize:13,color:col.tx}}>{mod}</span>
+                          <span style={{fontSize:10,color:col.tx,opacity:.6,background:col.bd+"55",borderRadius:20,padding:"1px 7px"}}>{topics.length}</span>
+                          <button onClick={e=>{e.stopPropagation();setEditingModule(mod);setEditDraft(mod);}} className="btn-ghost" style={{background:"none",color:T.accent,fontSize:11,fontWeight:600,padding:"2px 6px"}}>แก้ไข</button>
+                        </>
+                      )}
                     </div>
-                    <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                    <div style={{display:"flex",gap:5,alignItems:"center",flexShrink:0}}>
                       <span style={{fontSize:10,color:col.tx,opacity:.5}}>{isOpen?"▲":"▼"}</span>
                       <button onClick={e=>{e.stopPropagation();rmModule(mod);}} className="btn-ghost" style={{background:"none",color:T.remBtn,fontSize:13}}>🗑</button>
                     </div>
@@ -550,10 +591,24 @@ export default function App() {
                   {isOpen&&(
                     <div style={{padding:"10px 14px"}}>
                       {topics.map((t,ti)=>(
-                        <div key={ti} style={{display:"flex",alignItems:"flex-start",gap:7,marginBottom:5}}>
-                          <div style={{width:4,height:4,borderRadius:"50%",background:col.dot,marginTop:8,flexShrink:0}}/>
-                          <span style={{flex:1,fontSize:11,color:col.tx,lineHeight:1.6}}>{t}</span>
-                          <button onClick={()=>rmTopic(mod,ti)} className="btn-ghost" style={{background:"none",color:T.txtMuted,fontSize:11}}>✕</button>
+                        <div key={ti} style={{display:"flex",alignItems:"center",gap:7,marginBottom:5}}>
+                          <div style={{width:4,height:4,borderRadius:"50%",background:col.dot,marginTop:6,flexShrink:0}}/>
+                          {editingTopic&&editingTopic.mod===mod&&editingTopic.index===ti ? (
+                            <>
+                              <input value={editDraft} onChange={e=>setEditDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")updateTopic(mod,ti,editDraft);if(e.key==="Escape")setEditingTopic(null);}}
+                                style={{flex:1,minWidth:0,padding:"4px 8px",borderRadius:6,border:`1.5px solid ${col.bd}`,fontSize:11,outline:"none",background:"white",color:col.tx}}
+                                autoFocus
+                              />
+                              <button onClick={()=>updateTopic(mod,ti,editDraft)} className="btn-accent" style={{padding:"3px 8px",borderRadius:6,background:col.dot,color:"white",fontSize:10,fontWeight:600}}>บันทึก</button>
+                              <button onClick={()=>{setEditingTopic(null);setEditDraft("");}} className="btn-ghost" style={{padding:"3px 6px",fontSize:10,color:T.txtSub}}>ยกเลิก</button>
+                            </>
+                          ) : (
+                            <>
+                              <span style={{flex:1,fontSize:11,color:col.tx,lineHeight:1.6}}>{t}</span>
+                              <button onClick={()=>{setEditingTopic({mod,index:ti});setEditDraft(t);}} className="btn-ghost" style={{background:"none",color:T.accent,fontSize:10,fontWeight:600}}>แก้ไข</button>
+                              <button onClick={()=>rmTopic(mod,ti)} className="btn-ghost" style={{background:"none",color:T.txtMuted,fontSize:11}}>✕</button>
+                            </>
+                          )}
                         </div>
                       ))}
                       <div style={{display:"flex",gap:7,marginTop:10}}>
