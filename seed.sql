@@ -1,0 +1,140 @@
+-- ── SEED: modules ─────────────────────────────────────────────────────────────
+INSERT INTO modules (name, color_config) VALUES
+('GIT',            '{"l":{"bg":"#FFF0F5","bd":"#FFB3CC","tx":"#9B1A3A","dot":"#FF6B8A"},"d":{"bg":"#2A1520","bd":"#5A2535","tx":"#FFB3CC","dot":"#FF6B8A"}}'),
+('Algorithms',     '{"l":{"bg":"#FFF8EC","bd":"#FFD09B","tx":"#8B4A00","dot":"#FF9E3D"},"d":{"bg":"#2A1E00","bd":"#5A3E00","tx":"#FFD09B","dot":"#FF9E3D"}}'),
+('CSS',            '{"l":{"bg":"#EFF7FF","bd":"#B0CEFF","tx":"#1A5599","dot":"#4DA6FF"},"d":{"bg":"#0D2035","bd":"#1A4070","tx":"#B0CEFF","dot":"#4DA6FF"}}'),
+('JS',             '{"l":{"bg":"#FFFEF0","bd":"#FFE566","tx":"#7A5800","dot":"#FFD700"},"d":{"bg":"#25200A","bd":"#554500","tx":"#FFE566","dot":"#FFD700"}}'),
+('Nodejs',         '{"l":{"bg":"#F0FFF8","bd":"#90E0B0","tx":"#0D6035","dot":"#3DBD78"},"d":{"bg":"#0A2318","bd":"#144D30","tx":"#90E0B0","dot":"#3DBD78"}}'),
+('RDBMS',          '{"l":{"bg":"#F5F0FF","bd":"#C4ADFF","tx":"#4A1EA8","dot":"#9B6DFF"},"d":{"bg":"#180E35","bd":"#3D2880","tx":"#C4ADFF","dot":"#9B6DFF"}}'),
+('React',          '{"l":{"bg":"#EDFCFF","bd":"#80DEFF","tx":"#005580","dot":"#00BFFF"},"d":{"bg":"#001C2A","bd":"#004466","tx":"#80DEFF","dot":"#00BFFF"}}'),
+('RWEP',           '{"l":{"bg":"#FFF0FA","bd":"#FFB3E0","tx":"#880060","dot":"#FF69B4"},"d":{"bg":"#280018","bd":"#550035","tx":"#FFB3E0","dot":"#FF69B4"}}'),
+('TypeScript',     '{"l":{"bg":"#EEF2FF","bd":"#A0B8FF","tx":"#2040A0","dot":"#5580CC"},"d":{"bg":"#0D1530","bd":"#1A3370","tx":"#A0B8FF","dot":"#5580CC"}}'),
+('SkillCheckpoint','{"l":{"bg":"#F0FFF4","bd":"#7DDC7D","tx":"#0D550D","dot":"#4CAF50"},"d":{"bg":"#0A200A","bd":"#144D14","tx":"#7DDC7D","dot":"#4CAF50"}}'),
+('PersonalBlog',   '{"l":{"bg":"#FFF8F0","bd":"#FFCC80","tx":"#8B4A00","dot":"#FFA726"},"d":{"bg":"#251500","bd":"#502A00","tx":"#FFCC80","dot":"#FFA726"}}'),
+('Bootcamp_Info',  '{"l":{"bg":"#F8F0FF","bd":"#C8B8FF","tx":"#4400AA","dot":"#7C4DFF"},"d":{"bg":"#150033","bd":"#2D0066","tx":"#C8B8FF","dot":"#7C4DFF"}}'),
+('CareerPrep',     '{"l":{"bg":"#FFF0F7","bd":"#FFB3D1","tx":"#7A0035","dot":"#FF4081"},"d":{"bg":"#250010","bd":"#550025","tx":"#FFB3D1","dot":"#FF4081"}}'),
+('CareerSkills',   '{"l":{"bg":"#EFF6FF","bd":"#99CCFF","tx":"#004080","dot":"#2196F3"},"d":{"bg":"#001525","bd":"#00305A","tx":"#99CCFF","dot":"#2196F3"}}'),
+('Softskill',      '{"l":{"bg":"#FFF5EE","bd":"#FFB380","tx":"#662800","dot":"#FF7043"},"d":{"bg":"#1E0D00","bd":"#451C00","tx":"#FFB380","dot":"#FF7043"}}'),
+('Speaker',        '{"l":{"bg":"#F0FFF4","bd":"#A0E0A0","tx":"#0D4D0D","dot":"#66BB6A"},"d":{"bg":"#0A1A0A","bd":"#154015","tx":"#A0E0A0","dot":"#66BB6A"}}');
+
+-- ── SEED: topics ──────────────────────────────────────────────────────────────
+INSERT INTO topics (module_id, text, position)
+SELECT m.id, t.text, t.pos
+FROM modules m
+JOIN (VALUES
+  -- GIT
+  ('GIT', 'Git: Refs, Merging, Rebasing, Fixing Mistakes', 1),
+  ('GIT', 'Git: Remote Repository, Pull Request', 2),
+  -- Algorithms
+  ('Algorithms', 'Basic Algorithm Operations and Step', 1),
+  ('Algorithms', 'Algorithm Session (From Steps to Code I)', 2),
+  ('Algorithms', 'Algorithm Session (From Steps to Code II)', 3),
+  ('Algorithms', 'Algorithm Session (Linear Search)', 4),
+  ('Algorithms', 'Algorithm Session (Binary Search)', 5),
+  ('Algorithms', 'Algorithm Session (Nested Loop)', 6),
+  ('Algorithms', 'Algorithm Session (Bubble Sort)', 7),
+  ('Algorithms', 'Algo Exercise Guiding (Roman Integer, Moving Zeros, X)', 8),
+  ('Algorithms', 'More Algo Problem Patterns Guiding (Sliding Windows and Etc)', 9),
+  -- CSS
+  ('CSS', 'CSS: S&P, Pseudo, Specificity', 1),
+  ('CSS', 'CSS: Direction & Box model, Units, Fonts', 2),
+  ('CSS', 'CSS: Flexbox', 3),
+  ('CSS', 'CSS: Colors, Positioned, CSS Vars', 4),
+  ('CSS', 'Cursor AI Features', 5),
+  ('CSS', 'CSS: Tailwind CSS', 6),
+  ('CSS', 'CSS: Responsive Design', 7),
+  ('CSS', 'HTML CSS Mini Project 🚀', 8),
+  -- JS
+  ('JS', 'JS: Values & Variable, Primitive Values, Type Conversion, Intro to Debugging', 1),
+  ('JS', 'JS: Objects + Array', 2),
+  ('JS', 'JS: Functions, Equality of Values, If-Else', 3),
+  ('JS', 'JS: Loops', 4),
+  ('JS', 'JS: CB and HoF', 5),
+  ('JS', 'JS: Asynchronicity, Promise, Async/Await', 6),
+  ('JS', 'JS: CB and HoF Revisiting', 7),
+  ('JS', 'JS: Built-In Array Function 1', 8),
+  ('JS', 'JS: Built-In Array Function 2', 9),
+  ('JS', 'JS: Scopes, ECMAScript Feature', 10),
+  ('JS', 'JS: Algorithm Session (Big O)', 11),
+  -- Nodejs
+  ('Nodejs', 'Node.js: REST API Design', 1),
+  ('Nodejs', 'Node.js: Node.js, Express, Module', 2),
+  ('Nodejs', 'Node.js: Build Creating Data API', 3),
+  ('Nodejs', 'Node.js: Build the Complete CRUD APIs (Read All / Read Id)', 4),
+  ('Nodejs', 'Node.js: Build the Complete CRUD APIs (Update / Delete / Read with Query Params)', 5),
+  ('Nodejs', 'Node.js: API Validation & Middlewares & Router', 6),
+  ('Nodejs', 'Node.js: Basic Queries in MongoDB', 7),
+  ('Nodejs', 'Node.js: Connect MongoDB and Express', 8),
+  ('Nodejs', 'Node.js: Authentication & JWT Authentication 1', 9),
+  ('Nodejs', 'Node.js: Authentication & JWT Authentication 2', 10),
+  ('Nodejs', 'Next.js + Prisma ORM Workshop', 11),
+  -- RDBMS
+  ('RDBMS', 'RDBMS: Database Management System, Intro to Relational Database, Relational Database Design', 1),
+  ('RDBMS', 'RDBMS: PostgreSQL, Basic Queries in SQL', 2),
+  ('RDBMS', 'RDBMS: Joining Table', 3),
+  ('RDBMS', 'RDBMS: SQL Aggregations, SQL Tuning Performance', 4),
+  -- React
+  ('React', 'REACT: Intro to React, Vite, React Component', 1),
+  ('React', 'REACT: JSX + Module', 2),
+  ('React', 'REACT: Props', 3),
+  ('React', 'REACT: Revisiting React (Component, Props, Module)', 4),
+  ('React', 'REACT: Component Styling', 5),
+  ('React', 'REACT: Rendering Lists Workshop', 6),
+  ('React', 'REACT: React States + Form Handling Workshop', 7),
+  ('React', 'REACT: Manipulating Array State', 8),
+  ('React', 'REACT: React Quick Form Mini Project', 9),
+  ('React', 'REACT: Client-Server Architecture, Connect the APIs in JavaScript, Data Fetching', 10),
+  ('React', 'REACT: React Router', 11),
+  ('React', 'REACT: Revisiting React (Data Fetching and Router)', 12),
+  ('React', 'REACT: React Custom Hook', 13),
+  ('React', 'REACT: React Context API', 14),
+  -- RWEP
+  ('RWEP', 'RWEP: Software Development Process & Software Deployments + Debugging Workshop', 1),
+  ('RWEP', 'Authentication with services', 2),
+  -- TypeScript
+  ('TypeScript', 'From JS to TS', 1),
+  ('TypeScript', 'TypeScript in React', 2),
+  -- SkillCheckpoint
+  ('SkillCheckpoint', '✅ Skill Checkpoint #1 (JavaScript1)', 1),
+  ('SkillCheckpoint', '✅ Skill Checkpoint #2 (JavaScript2)', 2),
+  ('SkillCheckpoint', '✅ Skill Checkpoint #3 (Frontend)', 3),
+  ('SkillCheckpoint', '✅ Skill Checkpoint #4 (Backend)', 4),
+  ('SkillCheckpoint', '✅ Skill Checkpoint #5 (Algorithm)', 5),
+  -- PersonalBlog
+  ('PersonalBlog', 'Personal Blog', 1),
+  -- Bootcamp_Info
+  ('Bootcamp_Info', 'Orientation [09:00 - 16:00]', 1),
+  ('Bootcamp_Info', 'Bootcamp Norms, HH briefing', 2),
+  ('Bootcamp_Info', 'Career Prep Phase Briefing', 3),
+  ('Bootcamp_Info', 'Final Project Norm Setting + Kick off meeting', 4),
+  -- CareerPrep
+  ('CareerPrep', 'Career Prep Phase (Project 1)', 1),
+  ('CareerPrep', 'Career Prep Phase (Project 2)', 2),
+  ('CareerPrep', '💼 Job Searching', 3),
+  -- CareerSkills
+  ('CareerSkills', 'Cover Letter, Resume, LinkedIn', 1),
+  ('CareerSkills', 'Technical Interviews - 2', 2),
+  ('CareerSkills', 'Non-Technical Interviews', 3),
+  ('CareerSkills', 'Vue', 4),
+  ('CareerSkills', 'Java + OOP', 5),
+  ('CareerSkills', 'Spring Boot', 6),
+  ('CareerSkills', 'travel explorer Project Setup Workshop', 7),
+  ('CareerSkills', '💥Demo Day Rehearsal💥', 8),
+  ('CareerSkills', '💥Demo Day 💥', 9),
+  ('CareerSkills', '🎓Graduation Ceremony', 10),
+  -- Softskill
+  ('Softskill', 'Communications', 1),
+  ('Softskill', 'Giving and Receiving Feedback', 2),
+  ('Softskill', 'Growth Mindset + Skills Map', 3),
+  ('Softskill', 'Get Together #1', 4),
+  ('Softskill', 'Get Together #2', 5),
+  ('Softskill', 'Norm Setting', 6),
+  ('Softskill', 'Learning How to Learn (Recall & Test) + Present HTML CSS Mini Project', 7),
+  ('Softskill', 'Imposter Syndrome', 8),
+  ('Softskill', 'Learning How to Learn 1 (focused & diffuse mode)', 9),
+  ('Softskill', 'Learning How to Learn 2 (focused & diffuse mode)', 10),
+  ('Softskill', 'Learning How to Learn 3 (focused & diffuse mode)', 11),
+  -- Speaker
+  ('Speaker', 'Speaker #1 Succeeding in TechUp Bootcamp (Alumni)', 1),
+  ('Speaker', 'Speaker #3 Switching into Dev Career (Alumni)', 2)
+) AS t(module_name, text, pos) ON m.name = t.module_name;
