@@ -101,7 +101,7 @@ export default function App() {
   const [page,setPage]           = useState("schedule");
   const [cohort,setCohort]       = useState("FSD11");
   const [sd,setSd]               = useState("2026-05-18");
-  const [ed,setEd]               = useState("2026-08-28");
+  const [ed,setEd]               = useState("2026-10-09");
   const [newMod,setNewMod]       = useState("");
   const [newTopics,setNewTopics] = useState({});
   const [openMod,setOpenMod]     = useState(null);
@@ -205,7 +205,7 @@ export default function App() {
         {onConflict:'name'}
       );
       await loadModules();
-      const c=await syncCohort("FSD11","2026-05-18","2026-08-28");
+      const c=await syncCohort("FSD11","2026-05-18","2026-10-09");
       if(c)await loadSchedule(c.id);
       setLoading(false);
     }
