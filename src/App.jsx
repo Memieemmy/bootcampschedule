@@ -1,5 +1,9 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
+import {
+  DndContext, DragOverlay,
+  PointerSensor, useSensor, useSensors,
+} from "@dnd-kit/core";
 
 import { useModules }  from "./hooks/useModules";
 import { useCohort }   from "./hooks/useCohort";
@@ -15,7 +19,6 @@ import { ConfirmModal } from "./components/ConfirmModal";
 import { T, ACCENT, ACCENT_DIM } from "./constants/theme";
 
 export default function App() {
-  // ── Hooks ────────────────────────────────────────────────────────────────
   const {
     dbModules, dbTopics, loadModules,
     getTopicObjAt, getModuleColor,
@@ -25,29 +28,32 @@ export default function App() {
   } = useModules();
 
   const { dbCohort, syncCohort } = useCohort();
+  const { schedEntries, loadSchedule, getSess, setSess, addSess, rmSess } = useSchedule(dbModules, dbTopics);
 
-  const {
-    schedEntries, loadSchedule,
-    getSess, setSess, addSess, rmSess,
-  } = useSchedule(dbModules, dbTopics);
-
-  // ── UI State ─────────────────────────────────────────────────────────────
   const [page, setPage]         = useState("schedule");
   const [cohort, setCohort]     = useState("FSD11");
-  const [sd, setSd] = useState(() => localStorage.getItem("sd") || "2026-05-18");
-  const [ed, setEd] = useState(() => localStorage.getItem("ed") || "2026-10-09");
+  const [sd, setSd]             = useState(() => localStorage.getItem("sd") || "2026-05-18");
+  const [ed, setEd]             = useState(() => localStorage.getItem("ed") || "2026-08-28");
   const [loading, setLoading]   = useState(true);
   const [csvFlash, setCsvFlash] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
 
+  // ── Edit Mode ─────────────────────────────────────────────────────────────
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  // ── Drag State ────────────────────────────────────────────────────────────
+  // activeCard = การ์ดที่กำลังถูกลากอยู่ตอนนี้ (ใช้แสดง DragOverlay)
+  const [activeCard, setActiveCard] = useState(null);
+
+  // optimisticDates = { entryId: date } เก็บ date ชั่วคราวระหว่างลาก
+  // ทำให้การ์ดขยับทันทีโดยไม่ต้องรอ Supabase
+  const [optimisticDates, setOptimisticDates] = useState({});
+
   const isFirstRender = useRef(true);
+
   useEffect(() => { localStorage.setItem("sd", sd); }, [sd]);
   useEffect(() => { localStorage.setItem("ed", ed); }, [ed]);
 
-useEffect(() => { localStorage.setItem("sd", sd); }, [sd]);
-useEffect(() => { localStorage.setItem("ed", ed); }, [ed]);
-
-  // ── Derived ───────────────────────────────────────────────────────────────
   const modules = useMemo(() => {
     const r = {};
     dbModules.forEach(m => {
@@ -69,7 +75,6 @@ useEffect(() => { localStorage.setItem("ed", ed); }, [ed]);
   const scheduledTopics = useMemo(() => schedEntries.filter(e => e.module_id || e.topic_id).length, [schedEntries]);
   const progressPct     = totalTopics > 0 ? Math.round(scheduledTopics / totalTopics * 100) : 0;
 
-  // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     async function init() {
       setLoading(true);
@@ -95,10 +100,99 @@ useEffect(() => { localStorage.setItem("ed", ed); }, [ed]);
     sync();
   }, [cohort, sd, ed]); // eslint-disable-line
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  function askConfirm(title, desc, onConfirm) {
-    setConfirmModal({ title, desc, onConfirm });
+  // ── Sensors: ลากแค่ 3px ก็เริ่ม drag ────────────────────────────────────
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 3 } })
+  );
+
+  // ── onDragStart: จำการ์ดที่กำลังลาก ─────────────────────────────────────
+  function handleDragStart(event) {
+    const { dateKey, si, sess } = event.active.data.current;
+    setActiveCard({ dateKey, si, sess });
   }
+
+  // ── onDragOver: ขยับการ์ดทันทีระหว่างลาก (optimistic) ───────────────────
+  function handleDragOver(event) {
+    const { active, over } = event;
+    if (!over) return;
+
+    const { dateKey: fromDate, si } = active.data.current;
+    const toDate = over.id;
+    if (fromDate === toDate) return;
+
+    // หา entryId ของการ์ดที่ลากอยู่
+    const entry = schedEntries.find(e => {
+      const currentDate = optimisticDates[e.id] || e.date;
+      return currentDate === fromDate && e.session_index === si + 1;
+    });
+    if (!entry) return;
+
+    // อัปเดต optimisticDates ทันที → การ์ดขยับให้เห็นเลย
+    setOptimisticDates(prev => ({ ...prev, [entry.id]: toDate }));
+
+    // อัปเดต activeCard.dateKey ด้วย เพื่อให้ลากต่อได้
+    setActiveCard(prev => prev ? { ...prev, dateKey: toDate } : prev);
+  }
+
+  // ── onDragEnd: save ลง Supabase ──────────────────────────────────────────
+  async function handleDragEnd(event) {
+    const { over } = event;
+    setActiveCard(null); // เคลียร์ overlay
+
+    if (!over || Object.keys(optimisticDates).length === 0) {
+      setOptimisticDates({});
+      return;
+    }
+
+    // Save ทุก entry ที่ถูกย้ายไป Supabase
+    try {
+      for (const [entryId, newDate] of Object.entries(optimisticDates)) {
+        await supabase.from('schedule_entries').update({ date: newDate }).eq('id', entryId);
+      }
+      await loadSchedule(dbCohort.id);
+    } finally {
+      setOptimisticDates({});
+    }
+  }
+
+  // ── onDragCancel: ยกเลิก (กด Esc) → คืนของเดิม ──────────────────────────
+  function handleDragCancel() {
+    setActiveCard(null);
+    setOptimisticDates({});
+  }
+
+  // ── getSessWithOptimistic: แสดงผลรวม optimistic ──────────────────────────
+  function getSessWithOptimistic(dateKey) {
+    if (Object.keys(optimisticDates).length === 0) return getSess(dateKey);
+
+    const patchedEntries = schedEntries.map(e => ({
+      ...e,
+      date: optimisticDates[e.id] || e.date,
+    }));
+
+    const entries = patchedEntries
+      .filter(e => e.date === dateKey)
+      .sort((a, b) => a.session_index - b.session_index);
+
+    if (entries.length === 0) return [
+      { id: null, module: '', topic: '', start_time: '', end_time: '', note: '' },
+      { id: null, module: '', topic: '', start_time: '', end_time: '', note: '' },
+    ];
+
+    return entries.map(e => {
+      const topicObj = e.topic_id ? dbTopics.find(t => t.id === e.topic_id) : null;
+      return {
+        id: e.id,
+        module: dbModules.find(m => m.id === e.module_id)?.name || '',
+        topic: topicObj?.text || '',
+        start_time: (e.start_time?.slice(0, 5)) || (topicObj?.start_time?.slice(0, 5)) || '',
+        end_time: (e.end_time?.slice(0, 5)) || (topicObj?.end_time?.slice(0, 5)) || '',
+        note: e.note || '',
+      };
+    });
+  }
+
+  function askConfirm(title, desc, onConfirm) { setConfirmModal({ title, desc, onConfirm }); }
 
   function handleExportCSV() {
     downloadCSV(buildCSV(wdays, getSess), `Bootcamp_Schedule_${cohort}_${sd}_to_${ed}.csv`);
@@ -106,12 +200,10 @@ useEffect(() => { localStorage.setItem("ed", ed); }, [ed]);
     setTimeout(() => setCsvFlash(false), 2200);
   }
 
-  // Wrappers ที่ส่ง cohortId ให้ schedule hooks
   const boundSetSess = (dk, idx, field, val) => setSess(dbCohort?.id, dk, idx, field, val);
   const boundAddSess = (dk) => addSess(dbCohort?.id, dk);
   const boundRmSess  = (dk, idx) => rmSess(dbCohort?.id, dk, idx);
 
-  // ── Loading ───────────────────────────────────────────────────────────────
   if (loading) return (
     <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"#fff", fontFamily:"'Inter','Sarabun',sans-serif" }}>
       <div style={{ textAlign:"center" }}>
@@ -170,7 +262,7 @@ useEffect(() => { localStorage.setItem("ed", ed); }, [ed]);
                 </button>
               ))}
             </nav>
-            {wdays.length > 0 && (
+            {wdays.length > 0 && !isEditMode && (
               <button className={`btn-accent ${csvFlash ? "pop" : ""}`} onClick={handleExportCSV}
                 style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 16px", borderRadius:10, background: csvFlash ? ACCENT_DIM : T.accent, color:T.accentTx, fontWeight:700, fontSize:12, boxShadow:"0 2px 8px rgba(0,0,0,.12)", border:"none" }}>
                 <span>{csvFlash ? "✅" : "⬇"}</span>{csvFlash ? "Downloaded!" : "Export CSV"}
@@ -180,34 +272,83 @@ useEffect(() => { localStorage.setItem("ed", ed); }, [ed]);
         </div>
       </header>
 
-      {/* ── Pages ── */}
-      {page === "schedule" ? (
-        <SchedulePage
-          cohort={cohort} setCohort={setCohort}
-          sd={sd} setSd={setSd} ed={ed} setEd={setEd}
-          totalDays={totalDays} totalTopics={totalTopics}
-          scheduledTopics={scheduledTopics} progressPct={progressPct}
-          weeks={weeks} wdays={wdays}
-          getSess={getSess}
-          setSess={boundSetSess}
-          addSess={boundAddSess}
-          rmSess={boundRmSess}
-          getModuleColor={getModuleColor}
-          modules={modules}
-          csvFlash={csvFlash} onExportCSV={handleExportCSV}
-        />
-      ) : (
-        <SubjectsPage
-          modules={modules} dbModules={dbModules}
-          totalTopics={totalTopics} scheduledTopics={scheduledTopics}
-          schedEntries={schedEntries}
-          getTopicObjAt={getTopicObjAt}
-          onAddModule={addModule} onRemoveModule={removeModule} onUpdateModuleName={updateModuleName}
-          onAddTopic={addTopic} onRemoveTopic={removeTopic} onUpdateTopic={updateTopic}
-          onRestoreDefaults={() => restoreDefaults(() => setLoading(true), () => setLoading(false))}
-          askConfirm={askConfirm}
-        />
-      )}
+      {/* ── DndContext ครอบทั้งหมด → ลากข้ามสัปดาห์ได้ ── */}
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
+        {page === "schedule" ? (
+          <SchedulePage
+            cohort={cohort} setCohort={setCohort}
+            sd={sd} setSd={setSd} ed={ed} setEd={setEd}
+            totalDays={totalDays} totalTopics={totalTopics}
+            scheduledTopics={scheduledTopics} progressPct={progressPct}
+            weeks={weeks} wdays={wdays}
+            getSess={getSessWithOptimistic}
+            setSess={boundSetSess}
+            addSess={boundAddSess}
+            rmSess={boundRmSess}
+            getModuleColor={getModuleColor}
+            modules={modules}
+            csvFlash={csvFlash} onExportCSV={handleExportCSV}
+            isEditMode={isEditMode}
+            onStartEdit={() => setIsEditMode(true)}
+            onStopEdit={() => setIsEditMode(false)}
+            activeCardId={activeCard ? `${activeCard.dateKey}-${activeCard.si}` : null}
+          />
+        ) : (
+          <SubjectsPage
+            modules={modules} dbModules={dbModules}
+            totalTopics={totalTopics} scheduledTopics={scheduledTopics}
+            schedEntries={schedEntries}
+            getTopicObjAt={getTopicObjAt}
+            onAddModule={addModule} onRemoveModule={removeModule} onUpdateModuleName={updateModuleName}
+            onAddTopic={addTopic} onRemoveTopic={removeTopic} onUpdateTopic={updateTopic}
+            onRestoreDefaults={() => restoreDefaults(() => setLoading(true), () => setLoading(false))}
+            askConfirm={askConfirm}
+          />
+        )}
+
+        {/* ── DragOverlay: การ์ดที่โฟลตามนิ้วตอนลาก ── */}
+        <DragOverlay dropAnimation={{ duration: 150, easing: "ease" }}>
+          {activeCard ? (
+            <div style={{
+              background: "#fff",
+              borderRadius: 10,
+              border: "2px solid #6366F1",
+              padding: "8px 9px",
+              boxShadow: "0 12px 40px rgba(99,102,241,.35)",
+              transform: "rotate(2deg) scale(1.04)",
+              minWidth: 160,
+              opacity: 0.95,
+              cursor: "grabbing",
+            }}>
+              {/* pill */}
+              <div style={{
+                fontSize: 10, fontWeight: 600,
+                color: getModuleColor(activeCard.sess?.module || "").tx,
+                background: getModuleColor(activeCard.sess?.module || "").bg,
+                border: `1px solid ${getModuleColor(activeCard.sess?.module || "").bd}`,
+                borderRadius: 9999, padding: "2px 8px",
+                display: "inline-block", marginBottom: 4,
+              }}>
+                {activeCard.sess?.module || "—"}
+              </div>
+              <div style={{ fontSize: 11, color: "#111827", fontWeight: 500, lineHeight: 1.5 }}>
+                {activeCard.sess?.topic || "—"}
+              </div>
+              {activeCard.sess?.start_time && (
+                <div style={{ fontSize: 10, color: "#6B7280", marginTop: 4 }}>
+                  ⏰ {activeCard.sess.start_time} — {activeCard.sess.end_time}
+                </div>
+              )}
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       <ConfirmModal modal={confirmModal} onClose={() => setConfirmModal(null)} />
     </div>
