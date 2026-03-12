@@ -101,7 +101,7 @@ export default function App() {
   const [page,setPage]           = useState("schedule");
   const [cohort,setCohort]       = useState("FSD11");
   const [sd,setSd]               = useState("2026-05-18");
-  const [ed,setEd]               = useState("2026-10-09");
+  const [ed,setEd]               = useState("2026-08-28");
   const [newMod,setNewMod]       = useState("");
   const [newTopics,setNewTopics] = useState({});
   const [openMod,setOpenMod]     = useState(null);
@@ -117,7 +117,6 @@ export default function App() {
   const [confirmModal,setConfirmModal] = useState(null);
   const [editingSession,setEditingSession] = useState(null); // {dateKey, si}
   const [modMenuOpen,setModMenuOpen]   = useState(null); // module name for action menu
-  const [noteModal,setNoteModal]       = useState(null); // {dateKey, si, note}
 
   const isFirstRender = useRef(true);
 
@@ -206,16 +205,8 @@ export default function App() {
         {onConflict:'name'}
       );
       await loadModules();
-      const {data: existing} = await supabase.from('cohorts').select('*').eq('name','FSD11').maybeSingle();
-      if (existing) {
-        setSd(existing.start_date);
-        setEd(existing.end_date);
-        setDbCohort(existing);
-        await loadSchedule(existing.id);
-      } else {
-        const c = await syncCohort("FSD11", "2026-05-18", "2026-10-09");
-        if(c) await loadSchedule(c.id);
-      }
+      const c=await syncCohort("FSD11","2026-05-18","2026-08-28");
+      if(c)await loadSchedule(c.id);
       setLoading(false);
     }
     init();
@@ -609,16 +600,13 @@ export default function App() {
                                         </div>
                                       )}
                                       {sess.module&&(
-                                        <button onClick={()=>setNoteModal({dateKey,si,note:sess.note||""})}
-                                          style={{width:"100%",marginTop:4,padding:"4px 8px",borderRadius:6,
-                                            background:sess.note?"#EFF6FF":"#F9FAFB",
-                                            border:sess.note?"1px solid #BFDBFE":"1px solid #E5E7EB",
-                                            color:sess.note?"#1D4ED8":"#9CA3AF",fontSize:9,textAlign:"left",cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
-                                          <span>💬</span>
-                                          <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                                            {sess.note ? sess.note.slice(0,35)+(sess.note.length>35?"…":"") : "Add note…"}
-                                          </span>
-                                        </button>
+                                        <textarea
+                                          value={sess.note||""}
+                                          onChange={e=>setSess(dateKey,si,"note",e.target.value)}
+                                          placeholder="Note for this session (e.g. need more time, add quiz)"
+                                          rows={2}
+                                          style={{width:"100%",marginTop:2,padding:"3px 6px",borderRadius:6,border:"1px solid #E5E7EB",fontSize:9,background:"#FFFFFF",outline:"none",color:"#374151",resize:"vertical"}}
+                                        />
                                       )}
                                       {sess.id&&sessions.length>1&&(
                                         <button onClick={()=>{rmSess(dateKey,si);setEditingSession(null);}} style={{marginTop:6,width:"100%",padding:"3px",borderRadius:6,background:"#FEF2F2",border:"1px solid #FECACA",color:"#DC2626",fontSize:9,fontWeight:500,cursor:"pointer"}}>🗑 Delete session</button>
@@ -870,28 +858,6 @@ export default function App() {
             );
           })}
         </main>
-      )}
-
-      {/* ══ NOTE MODAL ══════════════════════════════════════════════════════ */}
-      {noteModal&&(
-        <div onClick={()=>setNoteModal(null)} style={{position:"fixed",inset:0,background:"rgba(17,24,39,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:16,padding:"24px 28px",width:420,maxWidth:"90vw",boxShadow:"0 8px 40px rgba(0,0,0,.22)"}}>
-            <div style={{fontWeight:700,fontSize:15,color:"#111827",marginBottom:12}}>💬 Note</div>
-            <textarea
-              autoFocus
-              value={noteModal.note}
-              onChange={e=>setNoteModal(p=>({...p,note:e.target.value}))}
-              rows={5}
-              placeholder="Add note for this session…"
-              style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #E5E7EB",fontSize:13,outline:"none",color:"#374151",resize:"vertical",fontFamily:"inherit",boxSizing:"border-box"}}
-            />
-            <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:16}}>
-              <button onClick={()=>setNoteModal(null)} style={{padding:"8px 18px",borderRadius:9,background:"#F3F4F6",color:"#374151",fontSize:13,fontWeight:500}}>Cancel</button>
-              <button onClick={()=>{setSess(noteModal.dateKey,noteModal.si,"note",noteModal.note);setNoteModal(null);}}
-                style={{padding:"8px 20px",borderRadius:9,background:"#111827",color:"#fff",fontSize:13,fontWeight:700}}>Save 💾</button>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* ══ CONFIRM MODAL ═══════════════════════════════════════════════════ */}
