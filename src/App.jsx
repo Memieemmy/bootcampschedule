@@ -257,7 +257,7 @@ export default function App() {
                 </button>
               ))}
             </nav>
-            {wdays.length > 0 && !isEditMode && (
+            {wdays.length > 0 && (
               <button className={`btn-accent ${csvFlash ? "pop" : ""}`} onClick={handleExportCSV}
                 style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 16px", borderRadius:10, background: csvFlash ? ACCENT_DIM : T.accent, color:T.accentTx, fontWeight:700, fontSize:12, boxShadow:"0 2px 8px rgba(0,0,0,.12)", border:"none" }}>
                 <span>{csvFlash ? "✅" : "⬇"}</span>{csvFlash ? "Downloaded!" : "Export CSV"}
