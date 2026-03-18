@@ -10,8 +10,7 @@ export function SchedulePage({
   getSess, setSess, addSess, rmSess,
   getModuleColor, modules,
   csvFlash, onExportCSV,
-  isEditMode, onStartEdit, onStopEdit,
-  activeCardId, // id ของการ์ดที่กำลังลาก → ใช้ทำให้การ์ดต้นทางจางลง
+  activeCardId,
 }) {
   const cardStyle  = { background:T.surf, borderRadius:16, border:`1px solid ${T.brd}`, padding:"16px 18px" };
   const inputStyle = { width:"100%", padding:"9px 13px", borderRadius:10, border:`1.5px solid ${T.brd2}`, fontSize:13, color:T.txt, background:T.inBg, outline:"none" };
@@ -20,26 +19,6 @@ export function SchedulePage({
   return (
     <main style={{ width:"100%", padding:"24px", boxSizing:"border-box" }}>
 
-      {/* Edit Mode Banner */}
-      {isEditMode && (
-        <div style={{
-          position:"sticky", top:62, zIndex:100,
-          background:"#EEF2FF", border:"1.5px solid #6366F1",
-          borderRadius:12, padding:"10px 18px", marginBottom:16,
-          display:"flex", alignItems:"center", justifyContent:"space-between"
-        }}>
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <span style={{ fontSize:16 }}>✏️</span>
-            <span style={{ fontWeight:700, fontSize:13, color:"#4338CA" }}>
-              Edit Mode — ลากการ์ดข้ามวันได้เลย กด Esc เพื่อยกเลิก
-            </span>
-          </div>
-          <button onClick={onStopEdit}
-            style={{ padding:"6px 16px", borderRadius:9, background:"#4338CA", color:"#fff", fontSize:13, fontWeight:600, border:"none", cursor:"pointer" }}>
-            ✓ เสร็จแล้ว
-          </button>
-        </div>
-      )}
 
       {/* Dashboard */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(175px,1fr))", gap:12, marginBottom:24 }}>
@@ -112,7 +91,6 @@ export function SchedulePage({
                   getSess={getSess} setSess={setSess}
                   addSess={addSess} rmSess={rmSess}
                   getModuleColor={getModuleColor} modules={modules}
-                  isEditMode={isEditMode}
                   activeCardId={activeCardId}
                 />
               ))}
@@ -121,30 +99,16 @@ export function SchedulePage({
         );
       })}
 
-      {/* Floating buttons */}
-      <div style={{ position:"fixed", bottom:28, right:28, zIndex:300, display:"flex", gap:10 }}>
-        <button
-          onClick={isEditMode ? onStopEdit : onStartEdit}
-          style={{
-            display:"flex", alignItems:"center", gap:8,
-            padding:"12px 22px", borderRadius:14,
-            background: isEditMode ? "#4338CA" : "#fff",
-            color: isEditMode ? "#fff" : "#4338CA",
-            border: "2px solid #4338CA",
-            fontWeight:700, fontSize:13,
-            boxShadow:"0 4px 20px rgba(0,0,0,.12)", cursor:"pointer"
-          }}>
-          {isEditMode ? "✅ Done" : "✏️ Edit Mode"}
-        </button>
-
-        {scheduledTopics > 0 && !isEditMode && (
+      {/* Floating button */}
+      {scheduledTopics > 0 && (
+        <div style={{ position:"fixed", bottom:28, right:28, zIndex:300 }}>
           <button className={`btn-accent ${csvFlash ? "pop" : ""}`} onClick={onExportCSV}
             style={{ display:"flex", alignItems:"center", gap:8, padding:"12px 22px", borderRadius:14, background: csvFlash ? ACCENT_DIM : ACCENT, color:"#fff", fontWeight:700, fontSize:13, boxShadow:"0 4px 20px rgba(0,0,0,.18)", border:"none", cursor:"pointer" }}>
             <span style={{ fontSize:15 }}>{csvFlash ? "✅" : "⬇"}</span>
             {csvFlash ? "Downloaded!" : "Export CSV"}
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </main>
   );
 }

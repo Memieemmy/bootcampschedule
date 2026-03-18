@@ -6,7 +6,7 @@ import { SessionCard } from "./SessionCard";
 export function DayColumn({
   date, getSess, setSess, addSess, rmSess,
   getModuleColor, modules,
-  isEditMode, activeCardId,
+  activeCardId,
 }) {
   const [editingSession, setEditingSession] = useState(null);
 
@@ -25,9 +25,9 @@ export function DayColumn({
       style={{
         background: dayHasHoliday ? "#F5F5F5" : dc.bg,
         borderRadius: 14,
-        border: `1.5px solid ${isOver && isEditMode ? "#6366F1" : dayHasHoliday ? "#D1D5DB" : dc.ac + "66"}`,
+        border: `1.5px solid ${isOver ? "#6366F1" : dayHasHoliday ? "#D1D5DB" : dc.ac + "66"}`,
         overflow: "hidden",
-        boxShadow: isOver && isEditMode ? "0 0 0 3px #6366F133" : "0 2px 8px rgba(0,0,0,.05)",
+        boxShadow: isOver ? "0 0 0 3px #6366F133" : "0 2px 8px rgba(0,0,0,.05)",
         transition: "border-color .15s, box-shadow .15s",
       }}
     >
@@ -62,9 +62,8 @@ export function DayColumn({
                 sess={sess} si={si}
                 dateKey={dateKey} sessions={sessions}
                 isEditing={editingSession === si}
-                isEditMode={isEditMode}
-                isDragging={activeCardId === cardId} // การ์ดนี้กำลังลากอยู่ → ทำให้จางลง
-                onStartEdit={() => { if (!isEditMode) setEditingSession(si); }}
+                isDragging={activeCardId === cardId}
+                onStartEdit={() => setEditingSession(si)}
                 onStopEdit={() => setEditingSession(null)}
                 onSetSess={setSess}
                 onRmSess={(dk, idx) => { rmSess(dk, idx); setEditingSession(null); }}
@@ -75,7 +74,7 @@ export function DayColumn({
           })
         )}
 
-        {!dayHasHoliday && sessions.length < 4 && !isEditMode && (
+        {!dayHasHoliday && sessions.length < 4 && (
           <button className="btn-ghost" onClick={() => addSess(dateKey)}
             style={{ width:"100%", marginTop:6, padding:"4px", borderRadius:8, border:`1.5px dashed ${dc.ac}`, background:"transparent", fontSize:10, color:"#AAA", fontWeight:500, cursor:"pointer" }}>
             + Session
