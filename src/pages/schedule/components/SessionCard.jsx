@@ -3,7 +3,7 @@ import { T } from "../../../constants/theme";
 
 export function SessionCard({
   sess, si, dateKey, sessions,
-  isEditing, isEditMode, isDragging,
+  isEditing, isDragging,
   onStartEdit, onStopEdit,
   onSetSess, onRmSess,
   getModuleColor, modules,
@@ -14,33 +14,41 @@ export function SessionCard({
   // ── Draggable ──────────────────────────────────────────────────────────────
   const { attributes, listeners, setNodeRef } = useDraggable({
     id: `${dateKey}-${si}`,
-    data: { dateKey, si, sess }, // ← ส่ง data ไปให้ handleDragOver/End ใช้
-    disabled: !isEditMode || !sess.module, // ลากได้เฉพาะตอน Edit Mode และมี module
+    data: { dateKey, si, sess },
+    disabled: !sess.id, // ลากได้เฉพาะ session ที่บันทึกใน DB แล้ว
   });
 
   return (
     <div
       ref={setNodeRef}
-      {...(isEditMode && sess.module ? { ...listeners, ...attributes } : {})}
+      {...attributes}
       className="hov-lift"
       style={{
         background: "#FFFFFF",
         borderRadius: 10,
-        border: `1.5px solid ${isEditing ? "#6366F1" : isEditMode && sess.module ? "#A5B4FC" : "#E5E7EB"}`,
+        border: `1.5px solid ${isEditing ? "#6366F1" : "#E5E7EB"}`,
         padding: "8px 9px",
         marginBottom: si < sessions.length - 1 ? 6 : 0,
         position: "relative",
         transition: "border-color .15s, opacity .2s",
-        // การ์ดต้นทางจางลงเมื่อกำลังถูกลาก
         opacity: isDragging ? 0.3 : 1,
-        // เปลี่ยน cursor ตาม mode
-        cursor: isEditMode && sess.module ? "grab" : isEditing ? "default" : "pointer",
+        cursor: isEditing ? "default" : "pointer",
       }}
-      onClick={() => { if (!isEditing && !isEditMode) onStartEdit(); }}
+      onClick={() => { if (!isEditing) onStartEdit(); }}
     >
-      {/* drag handle icon ตอน Edit Mode */}
-      {isEditMode && sess.module && (
-        <div style={{ position:"absolute", top:5, right:6, fontSize:11, color:"#A5B4FC", userSelect:"none" }}>⠿</div>
+      {/* drag handle — แสดงเมื่อมี id (บันทึกแล้ว) */}
+      {sess.id && (
+        <div
+          {...listeners}
+          onClick={e => e.stopPropagation()}
+          style={{
+            position: "absolute", top: 5, right: 6,
+            fontSize: 11, color: "#A5B4FC",
+            userSelect: "none", cursor: "grab",
+            padding: "2px 3px",
+            touchAction: "none",
+          }}
+        >⠿</div>
       )}
 
       {isEditing ? (

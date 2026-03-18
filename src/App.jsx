@@ -38,16 +38,11 @@ export default function App() {
   const [csvFlash, setCsvFlash] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
 
-  // ── Edit Mode ─────────────────────────────────────────────────────────────
-  const [isEditMode, setIsEditMode] = useState(false);
-
   // ── Drag State ────────────────────────────────────────────────────────────
-  // activeCard = การ์ดที่กำลังถูกลากอยู่ตอนนี้ (ใช้แสดง DragOverlay)
   const [activeCard, setActiveCard] = useState(null);
-
-  // optimisticDates = { entryId: date } เก็บ date ชั่วคราวระหว่างลาก
-  // ทำให้การ์ดขยับทันทีโดยไม่ต้องรอ Supabase
   const [optimisticDates, setOptimisticDates] = useState({});
+  // ref ติดตาม dateKey ปัจจุบันของการ์ดที่กำลังลาก (แก้ multi-hop bug)
+  const currentDragDateRef = useRef(null);
 
   const isFirstRender = useRef(true);
 
@@ -105,46 +100,45 @@ export default function App() {
     useSensor(PointerSensor, { activationConstraint: { distance: 3 } })
   );
 
-  // ── onDragStart: จำการ์ดที่กำลังลาก ─────────────────────────────────────
+  // ── onDragStart ───────────────────────────────────────────────────────────
   function handleDragStart(event) {
     const { dateKey, si, sess } = event.active.data.current;
+    currentDragDateRef.current = dateKey; // ตั้งค่าเริ่มต้น
     setActiveCard({ dateKey, si, sess });
   }
 
-  // ── onDragOver: ขยับการ์ดทันทีระหว่างลาก (optimistic) ───────────────────
+  // ── onDragOver: optimistic move — ใช้ ref แก้ multi-hop bug ──────────────
   function handleDragOver(event) {
     const { active, over } = event;
     if (!over) return;
 
-    const { dateKey: fromDate, si } = active.data.current;
+    const { si } = active.data.current;
+    const fromDate = currentDragDateRef.current; // ← ใช้ ref แทน active.data ที่ stale
     const toDate = over.id;
-    if (fromDate === toDate) return;
+    if (!fromDate || fromDate === toDate) return;
 
-    // หา entryId ของการ์ดที่ลากอยู่
     const entry = schedEntries.find(e => {
       const currentDate = optimisticDates[e.id] || e.date;
       return currentDate === fromDate && e.session_index === si + 1;
     });
     if (!entry) return;
 
-    // อัปเดต optimisticDates ทันที → การ์ดขยับให้เห็นเลย
+    currentDragDateRef.current = toDate; // อัปเดต ref ทันที
     setOptimisticDates(prev => ({ ...prev, [entry.id]: toDate }));
-
-    // อัปเดต activeCard.dateKey ด้วย เพื่อให้ลากต่อได้
     setActiveCard(prev => prev ? { ...prev, dateKey: toDate } : prev);
   }
 
   // ── onDragEnd: save ลง Supabase ──────────────────────────────────────────
   async function handleDragEnd(event) {
     const { over } = event;
-    setActiveCard(null); // เคลียร์ overlay
+    currentDragDateRef.current = null;
+    setActiveCard(null);
 
     if (!over || Object.keys(optimisticDates).length === 0) {
       setOptimisticDates({});
       return;
     }
 
-    // Save ทุก entry ที่ถูกย้ายไป Supabase
     try {
       for (const [entryId, newDate] of Object.entries(optimisticDates)) {
         await supabase.from('schedule_entries').update({ date: newDate }).eq('id', entryId);
@@ -155,8 +149,9 @@ export default function App() {
     }
   }
 
-  // ── onDragCancel: ยกเลิก (กด Esc) → คืนของเดิม ──────────────────────────
+  // ── onDragCancel: กด Esc → คืนของเดิม ────────────────────────────────────
   function handleDragCancel() {
+    currentDragDateRef.current = null;
     setActiveCard(null);
     setOptimisticDates({});
   }
@@ -294,9 +289,6 @@ export default function App() {
             getModuleColor={getModuleColor}
             modules={modules}
             csvFlash={csvFlash} onExportCSV={handleExportCSV}
-            isEditMode={isEditMode}
-            onStartEdit={() => setIsEditMode(true)}
-            onStopEdit={() => setIsEditMode(false)}
             activeCardId={activeCard ? `${activeCard.dateKey}-${activeCard.si}` : null}
           />
         ) : (
